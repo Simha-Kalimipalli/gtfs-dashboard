@@ -1,4 +1,4 @@
-# 🚌 GTFS Service Allocation Dashboard
+# 🚌 GTFS Service Allocation Dashboard (Case Study of York Region)
 
 A prototype decision-support tool that estimates **where adding buses saves the most passenger time** in a suburban transit network.
 
