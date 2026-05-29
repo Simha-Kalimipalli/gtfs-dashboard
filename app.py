@@ -366,7 +366,6 @@ with tab_baseline:
         stop_hw = sr.groupby("stop_id")["avg_headway_min"].mean().reset_index()
         stops = stops.merge(stop_hw, on="stop_id", how="left")
         
-        # FIX: Filter down before measuring bounds for the sample sizing
         stops_filtered = stops.dropna(subset=["avg_headway_min"])
         sample_size = min(3000, len(stops_filtered))
         
@@ -558,7 +557,7 @@ with tab_ranking:
     disp = ranked[list(dcols.keys())].rename(columns=dcols)
     st.dataframe(disp.style.format({
         "Pax-Hr Savings":"{:.2f}","Wait Saved/pax":"{:.1f}",
-        "Curr Hdwy":"{:.1f}","Scen Hdwy":"{:.1f}","Ridership (est.)":"{0:.0f}",
+        "Curr Hdwy":"{:.1f}","Scen Hdwy":"{:.1f}","Ridership (est.)":"{:.0f}",
     }), use_container_width=True, height=420)
 
     # Bar chart
@@ -661,10 +660,12 @@ with tab_sensitivity:
                     "Pax-Hr Savings": round(phs, 2),
                 })
 
+        # FIX: Swapped .pivot() with .pivot_table() using sum aggfunc to seamlessly merge overlapping route metrics
         heat_df = (
             pd.DataFrame(heat_data)
-            .pivot(index="Route", columns="Scenario", values="Pax-Hr Savings")
+            .pivot_table(index="Route", columns="Scenario", values="Pax-Hr Savings", aggfunc="sum")
         )
+        
         # Reorder columns to match FREQ_OPTIONS key order
         ordered_cols = [k for k in FREQ_OPTIONS.keys() if k in heat_df.columns]
         heat_df = heat_df[ordered_cols]
@@ -725,7 +726,7 @@ Computed by `precompute_ridership.py --osm york_region.osm.pbf` and stored in `d
             title="Zone-Level Transit Accessibility (r5py)",
             labels={"weighted_accessibility":"Accessibility Score"},
         )
-        st.plotly_chart(plotly_yrt(fig_acc), use_container_width=True)
+        st.plotly_chart(fig_acc, use_container_width=True)
     else:
         st.markdown(f"""
 <div class="warning-box">
