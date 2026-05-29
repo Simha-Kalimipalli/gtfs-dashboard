@@ -160,7 +160,6 @@ def compute_route_headways(tables, service_ids, ws, we):
     return df
 
 def compute_savings_for_scenario(row, target_hw):
-    # Support mapping from both baseline layout (avg_headway_min) and processed layout (current_headway)
     ch = float(row["current_headway"] if "current_headway" in row else row["avg_headway_min"])
     cw = float(row["current_wait"] if "current_wait" in row else row["expected_wait_min"])
     
@@ -366,17 +365,25 @@ with tab_baseline:
              headway_df[["route_id","avg_headway_min"]].drop_duplicates(), on="route_id", how="left")
         stop_hw = sr.groupby("stop_id")["avg_headway_min"].mean().reset_index()
         stops = stops.merge(stop_hw, on="stop_id", how="left")
-        fig_map = px.scatter_mapbox(
-            stops.dropna(subset=["avg_headway_min"]).sample(min(3000,len(stops)), random_state=42),
-            lat="stop_lat", lon="stop_lon", color="avg_headway_min",
-            color_continuous_scale=[[0,YRT_LIGHT],[0.5,YRT_DARK],[1,"#ff4444"]],
-            range_color=[0,60],
-            hover_data={"stop_id":True,"avg_headway_min":":.0f"},
-            zoom=9, height=480, mapbox_style="carto-darkmatter",
-            title="Stop-Level Average Headway (min)",
-            labels={"avg_headway_min":"Avg Headway (min)"},
-        )
-        st.plotly_chart(plotly_yrt(fig_map), use_container_width=True)
+        
+        # FIX: Filter down before measuring bounds for the sample sizing
+        stops_filtered = stops.dropna(subset=["avg_headway_min"])
+        sample_size = min(3000, len(stops_filtered))
+        
+        if sample_size > 0:
+            fig_map = px.scatter_mapbox(
+                stops_filtered.sample(sample_size, random_state=42),
+                lat="stop_lat", lon="stop_lon", color="avg_headway_min",
+                color_continuous_scale=[[0,YRT_LIGHT],[0.5,YRT_DARK],[1,"#ff4444"]],
+                range_color=[0,60],
+                hover_data={"stop_id":True,"avg_headway_min":":.0f"},
+                zoom=9, height=480, mapbox_style="carto-darkmatter",
+                title="Stop-Level Average Headway (min)",
+                labels={"avg_headway_min":"Avg Headway (min)"},
+            )
+            st.plotly_chart(plotly_yrt(fig_map), use_container_width=True)
+        else:
+            st.warning("No stops found with computed headway data matching current criteria.")
 
     with st.expander("🗂 Raw Headway Data"):
         st.dataframe(headway_df, use_container_width=True)
@@ -551,7 +558,7 @@ with tab_ranking:
     disp = ranked[list(dcols.keys())].rename(columns=dcols)
     st.dataframe(disp.style.format({
         "Pax-Hr Savings":"{:.2f}","Wait Saved/pax":"{:.1f}",
-        "Curr Hdwy":"{:.1f}","Scen Hdwy":"{:.1f}","Ridership (est.)":"{:.0f}",
+        "Curr Hdwy":"{:.1f}","Scen Hdwy":"{:.1f}","Ridership (est.)":"{0:.0f}",
     }), use_container_width=True, height=420)
 
     # Bar chart
