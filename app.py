@@ -160,8 +160,10 @@ def compute_route_headways(tables, service_ids, ws, we):
     return df
 
 def compute_savings_for_scenario(row, target_hw):
-    ch = float(row["avg_headway_min"])
-    cw = float(row["expected_wait_min"])
+    # Support lookup from both raw headway_df and renamed ranked DataFrame
+    ch = float(row["current_headway"] if "current_headway" in row else row["avg_headway_min"])
+    cw = float(row["current_wait"] if "current_wait" in row else row["expected_wait_min"])
+    
     if target_hw is None:
         return {"scenario_headway_min":round(ch,1),"scenario_wait_min":round(cw,1),"wait_reduction_min":0.0,"buses_added":0}
     if target_hw >= ch:
@@ -185,6 +187,7 @@ def rank_routes(route_df, ridership_dict, target_hw):
             "route_id":r["route_id"],"route_label":r["route_label"],"direction_id":r["direction_id"],
             "current_headway":r["avg_headway_min"],"current_wait":r["expected_wait_min"],
             "n_vehicles_est":r["n_vehicles_est"],
+            "cycle_min":r["cycle_min"],  # Kept here to preserve sensitivity allocations smoothly
             "scenario_headway":sim["scenario_headway_min"],"scenario_wait":sim["scenario_wait_min"],
             "wait_reduction_min":sim["wait_reduction_min"],"buses_added":sim["buses_added"],
             "assumed_ridership":pax,"pax_hr_savings":round(phs,2),
@@ -277,7 +280,7 @@ gravity_available = bool(route_ridership_peak)
 
 routes_df = tables["routes"]
 st.success(
-    f"✅  GTFS: **{routes_df['route_id'].nunique()} routes** · **{len(tables['trips'])} trips**  "
+    f"✅  GTFS: **{routes_df['route_id'].nunique()} routes** · **{len(tables['trips'])} trips** "
     f"| Gravity model: **{len(route_ridership_peak)} routes** estimated from **{len(od_samples)} O-D pairs**"
 )
 
